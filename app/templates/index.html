@@ -1,31 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Google Sheet Syncer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
-        <form method="POST">
-            <button type="submit">Sync</button>
-        </form>
-
-        {% if records %}
-        <table>
-            <tr>
-                {% for key in records[0].keys() %}
-                    <th>{{ key }}</th>
-                {% endfor %}
-            </tr>
-            {% for row in records %}
-                <tr>
-                    {% for value in row.values() %}
-                        <td>{{ value }}</td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </table>
-        {% endif %}
+        <h1>Product Details</h1>
+        <button id="sync-btn">Sync</button>
+        <div id="table-container"></div>
     </div>
+    
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
 </html>
