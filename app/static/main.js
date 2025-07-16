@@ -1,39 +1,56 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const syncButton = document.getElementById("sync-btn");
-    const tableContainer = document.getElementById("table-container");
+let page = 1;
+let loading = false;
+const pageSize = 25;
 
-    syncButton.addEventListener("click", function () {
-        fetch("/api/sheet")
-            .then(response => response.json())
-            .then(data => {
-                renderTable(data);
-            })
-            .catch(error => {
-                console.error("Error fetching data:", error);
+function fetchEmployees() {
+    if (loading) return;
+    loading = true;
+    document.getElementById("loading").style.display = "block";
+
+    fetch(`/api/employees?page=${page}&Page_size=${pageSize}`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById("employee-tbody");
+
+            data.forEach(emp => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${emp.employee_id}</td>
+                    <td>${emp.first_name}</td>
+                    <td>${new Date(emp.date_of_joining).toLocaleDateString()}</td>
+                    <td>${emp.salary || "N/A"}</td>
+                    <td>${emp.pay_grade || "N/A"}</td>
+                    <td>${emp.phone_number || "N/A"}</td>
+                    <td>${emp.city || "N/A"}</td>
+                `;
+                tbody.appendChild(row);
             });
-    });
 
-    function renderTable(records) {
-        if (records.length === 0) {
-            tableContainer.innerHTML = "<p>No data found.</p>";
-            return;
-        }
+            if (data.length === 0) {
+                document.getElementById("loading").innerText = "No more data.";
+            } else {
+                page += 1;
+                loading = false;
+                document.getElementById("loading").style.display = "none";
 
-        let table = "<table><thead><tr>";
-        for (let key of Object.keys(records[0])) {
-            table += `<th>${key}</th>`;
-        }
-        table += "</tr></thead><tbody>";
-
-        for (let row of records) {
-            table += "<tr>";
-            for (let value of Object.values(row)) {
-                table += `<td>${value}</td>`;
+                // If still not scrollable, fetch more
+                setTimeout(() => {
+                    if (document.body.scrollHeight <= window.innerHeight + 100) {
+                        fetchEmployees();
+                    }
+                }, 300);
             }
-            table += "</tr>";
-        }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            document.getElementById("loading").innerText = "Error loading data.";
+        });
+}
 
-        table += "</tbody></table>";
-        tableContainer.innerHTML = table;
+window.addEventListener("scroll", () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 50) {
+        fetchEmployees();
     }
 });
+
+fetchEmployees();

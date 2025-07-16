@@ -2,16 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Google Sheet Syncer</title>
+    <title>Employee List - Infinite Scroll</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Product Details</h1>
-        <button id="sync-btn">Sync</button>
-        <div id="table-container"></div>
-    </div>
+    <h1>Employee Records</h1>
     
+    <table id="employee-table">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Date of Joining</th>
+                <th>Salary</th>
+                <th>Pay Grade</th>
+                <th>Phone</th>
+                <th>City</th>
+            </tr>
+        </thead>
+        <tbody id="employee-tbody">
+            <!-- Rows will be appended here -->
+        </tbody>
+    </table>
+
+    <div id="loading">Loading...</div>
+
     <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
 </html>
