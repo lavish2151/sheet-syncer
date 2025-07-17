@@ -1,56 +1,71 @@
-let page = 1;
-let loading = false;
+let currentPage = 1;
 const pageSize = 25;
+let isLoading = false;
+let allDataLoaded = false;
+let startDate = '';
+let endDate = '';
+
+// Initial load
+document.addEventListener("DOMContentLoaded", () => {
+    fetchEmployees();
+
+    window.addEventListener("scroll", () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
+            fetchEmployees();
+        }
+    });
+
+    document.getElementById("applyFilter").addEventListener("click", () => {
+        currentPage = 1;
+        allDataLoaded = false;
+        document.getElementById("employeeBody").innerHTML = "";  // Clear table
+        startDate = document.getElementById("startDate").value;
+        endDate = document.getElementById("endDate").value;
+        fetchEmployees();
+    });
+});
 
 function fetchEmployees() {
-    if (loading) return;
-    loading = true;
-    document.getElementById("loading").style.display = "block";
+    if (isLoading || allDataLoaded) return;
 
-    fetch(`/api/employees?page=${page}&Page_size=${pageSize}`)
-        .then(response => response.json())
+    isLoading = true;
+    document.getElementById("loader").style.display = "block";
+
+    let url = `/api/employees?page=${currentPage}&page_size=${pageSize}`;
+    if (startDate && endDate) {
+        url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    fetch(url)
+        .then(res => res.json())
         .then(data => {
-            const tbody = document.getElementById("employee-tbody");
-
-            data.forEach(emp => {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${emp.employee_id}</td>
-                    <td>${emp.first_name}</td>
-                    <td>${new Date(emp.date_of_joining).toLocaleDateString()}</td>
-                    <td>${emp.salary || "N/A"}</td>
-                    <td>${emp.pay_grade || "N/A"}</td>
-                    <td>${emp.phone_number || "N/A"}</td>
-                    <td>${emp.city || "N/A"}</td>
-                `;
-                tbody.appendChild(row);
-            });
-
             if (data.length === 0) {
-                document.getElementById("loading").innerText = "No more data.";
+                allDataLoaded = true;
             } else {
-                page += 1;
-                loading = false;
-                document.getElementById("loading").style.display = "none";
-
-                // If still not scrollable, fetch more
-                setTimeout(() => {
-                    if (document.body.scrollHeight <= window.innerHeight + 100) {
-                        fetchEmployees();
-                    }
-                }, 300);
+                appendRows(data);
+                currentPage++;
             }
         })
-        .catch(error => {
-            console.error("Error:", error);
-            document.getElementById("loading").innerText = "Error loading data.";
+        .catch(error => console.error("Error fetching data:", error))
+        .finally(() => {
+            isLoading = false;
+            document.getElementById("loader").style.display = "none";
         });
 }
 
-window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 50) {
-        fetchEmployees();
-    }
-});
-
-fetchEmployees();
+function appendRows(data) {
+    const tbody = document.getElementById("employeeBody");
+    data.forEach(emp => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${emp.employee_id}</td>
+            <td>${emp.first_name}</td>
+            <td>${emp.date_of_joining}</td>
+            <td>${emp.salary ?? ''}</td>
+            <td>${emp.pay_grade ?? ''}</td>
+            <td>${emp.phone_number ?? ''}</td>
+            <td>${emp.city ?? ''}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
