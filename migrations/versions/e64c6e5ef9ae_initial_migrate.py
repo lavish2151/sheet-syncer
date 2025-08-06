@@ -1,8 +1,8 @@
-"""Initial database setup 5
+"""Initial migrate
 
-Revision ID: 1bae8a9c91ca
-Revises: 125a991cbbd5
-Create Date: 2025-07-11 10:17:11.901015
+Revision ID: e64c6e5ef9ae
+Revises: 
+Create Date: 2025-08-07 01:33:12.914676
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '1bae8a9c91ca'
-down_revision = '125a991cbbd5'
+revision = 'e64c6e5ef9ae'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -29,16 +29,16 @@ def upgrade():
     op.create_table('employee_contact_info',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('employee_id', sa.String(length=50), nullable=False),
-    sa.Column('phone_number', sa.String(length=20), nullable=False),
-    sa.Column('city', sa.String(length=100), nullable=False),
+    sa.Column('phone_number', sa.String(length=40), nullable=True),
+    sa.Column('city', sa.String(length=100), nullable=True),
     sa.ForeignKeyConstraint(['employee_id'], ['employee_basic_info.employee_id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('employee_salary_info',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('employee_id', sa.String(length=50), nullable=False),
-    sa.Column('salary', sa.Float(), nullable=False),
-    sa.Column('pay_grade', sa.String(length=50), nullable=False),
+    sa.Column('salary', sa.Float(), nullable=True),
+    sa.Column('pay_grade', sa.String(length=50), nullable=True),
     sa.ForeignKeyConstraint(['employee_id'], ['employee_basic_info.employee_id'], ),
     sa.PrimaryKeyConstraint('id')
     )

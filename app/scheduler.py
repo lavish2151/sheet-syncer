@@ -5,7 +5,7 @@ import atexit
 def start_scheduler(app):
     scheduler = BackgroundScheduler()
 
-    @scheduler.scheduled_job('interval', seconds=10)
+    @scheduler.scheduled_job('interval', minutes=1)
     def job():
         with app.app_context():
             print("[Scheduler] Syncing Google Sheet to DB...")
