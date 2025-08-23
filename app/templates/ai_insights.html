@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Employee Insights</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai_insights.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h1>AI-Powered Employee Insights</h1>
+
+    <div class="ai-input-section">
+      <input id="aiPrompt" type="text" placeholder="Ask about employees, e.g., 'last 30 days', 'all records'" />
+      <button id="submitAiPrompt">Get AI Insight</button>
+    </div>
+
+    <div id="aiOutput" class="ai-output">
+      AI-generated insights will appear here.
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='ai_insights.js') }}"></script>
+</body>
+</html>

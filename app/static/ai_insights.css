@@ -1,0 +1,51 @@
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #16171a;
+  color: #e7e8ea;
+  padding: 30px;
+  text-align: center;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.ai-input-section {
+  margin-bottom: 25px;
+}
+
+#aiPrompt {
+  width: 70%;
+  padding: 12px 18px;
+  font-size: 1.1em;
+  border-radius: 6px 0 0 6px;
+  background: #191a20;
+  border: 1px solid #28292f;
+  color: #f6f6f7;
+  outline: none;
+}
+
+#submitAiPrompt {
+  padding: 12px 22px;
+  font-weight: bold;
+  border-radius: 0 6px 6px 0;
+  border: none;
+  background-color: #246bfd;
+  color: white;
+  cursor: pointer;
+}
+
+#submitAiPrompt:hover {
+  background-color: #1a50d1;
+}
+
+.ai-output {
+  background-color: #22242a;
+  padding: 22px;
+  border-radius: 10px;
+  font-size: 1.15em;
+  white-space: pre-line;
+  min-height: 80px;
+  box-shadow: 0 0 15px #12121488;
+}
