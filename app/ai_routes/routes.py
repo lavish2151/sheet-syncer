@@ -5,9 +5,36 @@ from sqlalchemy import text
 from datetime import datetime, timedelta
 import os
 from . import ai_bp
-
+import re
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+schema_description = schema_description = """
+You have access to the following database schema with tables and their relationships:
+
+Table: employee_basic_info
+- id (Primary Key)
+- employee_id (Unique, NOT NULL)
+- first_name (NOT NULL)
+- date_of_joining (NOT NULL)
+
+Table: employee_salary_info
+- id (Primary Key)
+- employee_id (Foreign Key to employee_basic_info.employee_id, NOT NULL)
+- salary
+- pay_grade
+
+Table: employee_contact_info
+- id (Primary Key)
+- employee_id (Foreign Key to employee_basic_info.employee_id, NOT NULL)
+- phone_number
+- city
+
+Relationships:
+- employee_salary_info has a many-to-one relationship with employee_basic_info via employee_id.
+- employee_contact_info has a many-to-one relationship with employee_basic_info via employee_id.
+- Each employee_basic_info record may have zero or one related salary_info and contact_info record.
+"""
 
 
 def fetch_records(sql_query, params=None):
@@ -17,93 +44,92 @@ def fetch_records(sql_query, params=None):
     try:
         result = db.session.execute(text(sql_query), params)
         records = [dict(row._mapping) for row in result]
+        print(records)
         app.logger.info(f"Fetched {len(records)} records from database")
         return records
     except Exception as e:
         app.logger.error(f"Database query error: {e}")
         raise
 
+    
+def generate_sql_query_with_llm(user_prompt):
+    combined_prompt=(
+        f"{schema_description}\n"
+        f'User question: "{user_prompt}"\n'
+        "Write a SQL select query (limit 50 rows) for this question. Output only the SQL code.Not write anything other than that. Consider, the output row should contain all the information if not specified by the user. Keep in mind that my database type is postgresql"
+    )
+    response = client.chat.completions.create(
+        model = "gpt-4o",
+        messages = [
+            {'role': 'system', 'content':'You are a helpful SQL assistant'},
+            {'role': 'user', 'content':combined_prompt}
+        ],
+        max_tokens = 300
+    )
+    sql_query = response.choices[0].message.content.strip()
+    sql_query = sql_query.removeprefix('```sql').strip()
+    sql_query = sql_query.removesuffix('```').strip()
+    return sql_query
+
+
+def is_select_query(sql_query):
+    sql_query = sql_query.strip().lower()
+    if not sql_query.startswith('select'):
+        return False
+    dangerours_keywords = ["insert", "update", "delete", "drop", "alter", "truncate", "create"]
+    for keyword in dangerours_keywords:
+        if keyword in sql_query:
+            return False
+    return True
+
 
 @ai_bp.route('/api/ai-insights', methods=['POST'])
 def ai_insights():
-    user_prompt = request.json.get('prompt', '').lower()
-    app.logger.info(f"Received AI insight request with prompt: {user_prompt}")
-
+    """
+    Main API endpoint for AI-powered insights.
+    Receives a natural language prompt, generates and executes SQL,
+    then summarizes and returns results as JSON.
+    """
     try:
-        if 'all records' in user_prompt or 'all columns' in user_prompt or 'full details' in user_prompt:
-            app.logger.info("User requested all records")
-            sql = """
-            SELECT 
-                b.*, 
-                s.*, 
-                c.*
-            FROM employee_basic_info b
-            LEFT JOIN employee_salary_info s ON b.employee_id = s.employee_id
-            LEFT JOIN employee_contact_info c ON b.employee_id = c.employee_id
-            ORDER BY b.employee_id
-            """
-            records = fetch_records(sql)
-            preview = records[:10]
-            data_str = ""
-            for row in preview:
-                row_str = "; ".join([f"{k}: {v}" for k, v in row.items()])
-                data_str += f"{row_str}\n"
-            prompt_for_ai = f"Here are the full details for the first 10 employees:\n{data_str}\nSummarize or explain this."
+        user_prompt = request.json.get('prompt', '')
+        if not user_prompt:
+            return jsonify({"error": "No prompt provided"}), 400
+        app.logger.info(f"Received prompt: {user_prompt}")
 
-        elif 'last 30 days' in user_prompt:
-            app.logger.info("User requested last 30 days records")
-            start_date = datetime.now() - timedelta(days=30)
-            sql = """
-            SELECT 
-                b.*, 
-                s.*, 
-                c.*
-            FROM employee_basic_info b
-            LEFT JOIN employee_salary_info s ON b.employee_id = s.employee_id
-            LEFT JOIN employee_contact_info c ON b.employee_id = c.employee_id
-            WHERE b.date_of_joining >= :start_date
-            ORDER BY b.date_of_joining DESC
-            LIMIT 50
-            """
-            records = fetch_records(sql, {'start_date': start_date})
-            preview = records[:10]
-            data_str = ""
-            for row in preview:
-                row_str = "; ".join([f"{k}: {v}" for k, v in row.items()])
-                data_str += f"{row_str}\n"
-            prompt_for_ai = f"These are full details for employees who joined in the last 30 days:\n{data_str}\nSummarize this data."
+        sql_query = generate_sql_query_with_llm(user_prompt)
 
-        elif 'top cities' in user_prompt:
-            app.logger.info("User requested top cities")
-            sql = """
-            SELECT city, COUNT(*) AS count 
-            FROM employee_contact_info
-            GROUP BY city 
-            ORDER BY count DESC 
-            LIMIT 3
-            """
-            records = fetch_records(sql)
-            cities = [f"{r['city']}: {r['count']} employees" for r in records]
-            data_str = "\n".join(cities)
-            prompt_for_ai = f"Here is the employee count per city:\n{data_str}\nPlease summarize this."
+        if not is_select_query(sql_query):
+            return jsonify({"summary": "Generated SQL query is invalid or not allowed."}), 400
 
-        else:
-            app.logger.warning(f"Unsupported query prompt received: {user_prompt}")
-            return jsonify({"summary": "Sorry, supported queries: 'all records', 'last 30 days', and 'top cities'."})
+        records = fetch_records(sql_query)
+        preview = records[:10]
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt_for_ai}],
-            max_tokens=500
+        data_str = "\n".join(
+            "; ".join(f"{k}: {v}" for k, v in row.items())
+            for row in preview
         )
-        summary = response.choices[0].message.content
-        app.logger.info("Successfully received response from OpenAI API")
+
+        summary_prompt = (
+            f'User question: "{user_prompt}"\n'
+            f"Here is sample data (up to 10 rows):\n{data_str}\n"
+            "Please provide a concise and clear summary based on this data."
+        )
+
+        summary_resp = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": schema_description},
+                {"role": "user", "content": summary_prompt}
+            ],
+            max_tokens=250
+        )
+        summary = summary_resp.choices[0].message.content.strip()
+        app.logger.info("Successfully generated summary")
 
         return jsonify({"summary": summary})
-
     except Exception as e:
-        app.logger.error(f"Error processing AI insights request: {e}", exc_info=True)
-        return jsonify({"error": "An unexpected error occurred."}), 500
+        app.logger.error(f"Error in AI insights endpoint: {e}", exc_info=True)
+        return jsonify({"error": "An internal error occurred."}), 500
 
 
 @ai_bp.route('/ai-insights', methods=['GET'])
